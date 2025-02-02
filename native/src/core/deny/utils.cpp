@@ -370,7 +370,7 @@ int enable_deny() {
 
         denylist_enforced = true;
 
-        if (!zygisk_enabled) {
+        if (!MagiskD::Get().zygisk_enabled()) {
             if (new_daemon_thread(&logcat)) {
                 denylist_enforced = false;
                 return DenyResponse::ERROR;
@@ -385,7 +385,7 @@ int enable_deny() {
         }
     }
 
-    MagiskD().set_db_setting(DbEntryKey::DenylistConfig, true);
+    MagiskD::Get().set_db_setting(DbEntryKey::DenylistConfig, true);
     return DenyResponse::OK;
 }
 
@@ -393,13 +393,13 @@ int disable_deny() {
     if (denylist_enforced.exchange(false)) {
         LOGI("* Disable DenyList\n");
     }
-    MagiskD().set_db_setting(DbEntryKey::DenylistConfig, false);
+    MagiskD::Get().set_db_setting(DbEntryKey::DenylistConfig, false);
     return DenyResponse::OK;
 }
 
 void initialize_denylist() {
     if (!denylist_enforced) {
-        if (MagiskD().get_db_setting(DbEntryKey::DenylistConfig))
+        if (MagiskD::Get().get_db_setting(DbEntryKey::DenylistConfig))
             enable_deny();
     }
 }
@@ -428,4 +428,13 @@ bool is_deny_target(int uid, string_view process) {
         }
     }
     return false;
+}
+
+void update_deny_flags(int uid, rust::Str process, uint32_t &flags) {
+    if (is_deny_target(uid, { process.begin(), process.end() })) {
+        flags |= +ZygiskStateFlags::ProcessOnDenyList;
+    }
+    if (denylist_enforced) {
+        flags |= +ZygiskStateFlags::DenyListEnforced;
+    }
 }
